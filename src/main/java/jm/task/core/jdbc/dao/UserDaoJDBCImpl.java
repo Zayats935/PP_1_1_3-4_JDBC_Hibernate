@@ -9,12 +9,15 @@ import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
 
+    private final Connection mySQLConnection = Util.getMySQLConnection();
+
     public UserDaoJDBCImpl() {
     }
 
     public void createUsersTable() {
-        try (Connection connection = Util.getMySQLConnection(); Statement statement = Util.getMySQLConnection().createStatement()) {
-            boolean exists = connection.getMetaData().getTables(connection.getCatalog(), null, "user", null).next();
+        try (Statement statement = mySQLConnection.createStatement()) {
+            boolean exists = mySQLConnection.getMetaData().getTables(mySQLConnection.getCatalog(), null,
+                    "user", null).next();
             if (!exists) {
                 statement.executeUpdate("""
                         CREATE TABLE user (
@@ -31,20 +34,22 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void dropUsersTable() {
-        try (Connection connection = Util.getMySQLConnection(); Statement statement = connection.createStatement()) {
-            boolean exists = connection.getMetaData().getTables(connection.getCatalog(), null, "user", null).next();
+        try (Statement statement = mySQLConnection.createStatement()) {
+            boolean exists = mySQLConnection.getMetaData().getTables(mySQLConnection.getCatalog(), null,
+                    "user", null).next();
             if (exists) {
                 statement.executeUpdate("DROP TABLE user");
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Ошибка удаления таблицы");
+            throw new RuntimeException(e.getMessage());
         }
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        try (Connection connection = Util.getMySQLConnection()) {
-            PreparedStatement statement = connection.prepareStatement("INSERT INTO user (`name`, `lastname`, `age`) VALUES (?,?,?)");
-            statement.setString(1,name);
+        try {
+            PreparedStatement statement = mySQLConnection.prepareStatement("INSERT INTO user (`name`, `lastname`," +
+                    " `age`) VALUES (?,?,?)");
+            statement.setString(1, name);
             statement.setString(2, lastName);
             statement.setByte(3, age);
             statement.execute();
@@ -55,15 +60,17 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void removeUserById(long id) {
-        try (Connection connection = Util.getMySQLConnection(); Statement statement = connection.createStatement()) {
-            statement.executeUpdate("DELETE FROM user WHERE id=" + id);
+        try {
+            PreparedStatement statement = mySQLConnection.prepareStatement("DELETE FROM user WHERE id=?");
+            statement.setLong(1, id);
+            statement.execute();
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка удаления юзера по ид");
         }
     }
 
     public List<User> getAllUsers() {
-        try (Connection connection = Util.getMySQLConnection(); Statement statement = connection.createStatement()) {
+        try (Statement statement = mySQLConnection.createStatement()) {
             List<User> users = new ArrayList<>();
             ResultSet resultSet = statement.executeQuery("SELECT * FROM user");
             while (resultSet.next()) {
@@ -81,7 +88,7 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void cleanUsersTable() {
-        try (Connection connection = Util.getMySQLConnection(); Statement statement = connection.createStatement()) {
+        try (Statement statement = mySQLConnection.createStatement()) {
             statement.executeUpdate("TRUNCATE TABLE user");
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка очистки таблицы");
